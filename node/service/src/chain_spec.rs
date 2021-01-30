@@ -896,6 +896,8 @@ fn rococo_staging_testnet_config_genesis(wasm_binary: &[u8]) -> rococo_runtime::
 				..Default::default()
 			},
 		}),
+
+		pallet_treasury: Some(Default::default()),
 	}
 }
 
@@ -1402,6 +1404,8 @@ pub fn rococo_testnet_genesis(
 				..Default::default()
 			},
 		}),
+
+		pallet_treasury: Some(Default::default()),
 	}
 }
 

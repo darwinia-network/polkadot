@@ -205,7 +205,148 @@ construct_runtime! {
 
 		// Propose parachain pallet.
 		ProposeParachain: propose_parachain::{Module, Call, Storage, Event<T>},
+
+		RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Module, Storage},
+		Treasury: pallet_treasury::{Module, Call, Storage, Config, Event<T>},
+		Bounties: pallet_bounties::{Module, Call, Storage, Event<T>},
+		Slots: slots::{Module, Call, Storage, Event<T>},
+		Crowdloan: crowdloan::{Module, Call, Storage, Event<T>},
 	}
+}
+
+use sp_std::borrow::ToOwned;
+use sp_runtime::{ModuleId, Percent, Permill, DispatchResult};
+use frame_support::{StorageMap, StorageValue};
+use runtime_common::{crowdloan, slots::{self, Registrar as RegistrarT}};
+use polkadot_parachain::primitives::HeadData;
+
+pub struct Parachains;
+impl RegistrarT<AccountId> for Parachains
+{
+	fn new_id() -> ParaId {
+		parachains_paras::Parachains::get()
+			.last()
+			.map(|id| u32::from(id.to_owned()) + 1)
+			.unwrap_or(0)
+			.into()
+	}
+
+	fn head_data_size_allowed(_: u32) -> bool {
+		true
+	}
+
+	fn code_size_allowed(_: u32) -> bool {
+		true
+	}
+
+	fn register_para(
+		id: ParaId,
+		parachain: bool,
+		code: ValidationCode,
+		initial_head_data: HeadData,
+	) -> DispatchResult {
+		if !parachain {
+			Err("Not allow register parathread")?;
+		}
+		if parachains_paras::Parachains::get().contains(&id) {
+			Err("ID already exists")?;
+		}
+
+		parachains_paras::Parachains::append(&id);
+		parachains_paras::Heads::insert(&id, initial_head_data);
+		parachains_paras::FutureCode::insert(&id, code);
+
+		Ok(())
+	}
+
+	fn deregister_para(id: ParaId) -> DispatchResult {
+		if parachains_paras::Parachains::get().contains(&id) {
+			Err("ID already exists")?;
+		}
+
+		parachains_paras::Parachains::mutate(|parachains| parachains.remove(parachains.iter().position(|id_| id_ == &id).unwrap()));
+		parachains_paras::Heads::remove(&id);
+		<parachains_paras::FutureCodeUpgrades<Runtime>>::remove(&id);
+		parachains_paras::FutureCode::remove(&id);
+
+		Ok(())
+	}
+}
+
+parameter_types! {
+	pub const ProposalBond: Permill = Permill::from_percent(5);
+	pub const ProposalBondMinimum: Balance = 20 * DOLLARS;
+	pub const SpendPeriod: BlockNumber = 6 * DAYS;
+	pub const Burn: Permill = Permill::from_perthousand(2);
+	pub const TreasuryModuleId: ModuleId = ModuleId(*b"py/trsry");
+
+	pub const TipCountdown: BlockNumber = 1 * DAYS;
+	pub const TipFindersFee: Percent = Percent::from_percent(20);
+	pub const TipReportDepositBase: Balance = 1 * DOLLARS;
+	pub const DataDepositPerByte: Balance = 1 * CENTS;
+	pub const BountyDepositBase: Balance = 1 * DOLLARS;
+	pub const BountyDepositPayoutDelay: BlockNumber = 4 * DAYS;
+	pub const BountyUpdatePeriod: BlockNumber = 90 * DAYS;
+	pub const MaximumReasonLength: u32 = 16384;
+	pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
+	pub const BountyValueMinimum: Balance = 2 * DOLLARS;
+}
+impl pallet_treasury::Config for Runtime {
+	type ModuleId = TreasuryModuleId;
+	type Currency = Balances;
+	type ApproveOrigin = EnsureRoot<AccountId>;
+	type RejectOrigin = EnsureRoot<AccountId>;
+	type Event = Event;
+	type OnSlash = Treasury;
+	type ProposalBond = ProposalBond;
+	type ProposalBondMinimum = ProposalBondMinimum;
+	type SpendPeriod = SpendPeriod;
+	type Burn = Burn;
+	type BurnDestination = ();
+	type SpendFunds = Bounties;
+	type WeightInfo = ();
+}
+impl pallet_bounties::Config for Runtime {
+	type Event = Event;
+	type BountyDepositBase = BountyDepositBase;
+	type BountyDepositPayoutDelay = BountyDepositPayoutDelay;
+	type BountyUpdatePeriod = BountyUpdatePeriod;
+	type BountyCuratorDeposit = BountyCuratorDeposit;
+	type BountyValueMinimum = BountyValueMinimum;
+	type DataDepositPerByte = DataDepositPerByte;
+	type MaximumReasonLength = MaximumReasonLength;
+	type WeightInfo = ();
+
+}
+
+parameter_types!{
+	pub const LeasePeriod: BlockNumber = 50;
+	pub const EndingPeriod: BlockNumber = 50;
+}
+impl slots::Config for Runtime {
+	type Event = Event;
+	type Currency = Balances;
+	type Parachains = Parachains;
+	type LeasePeriod = LeasePeriod;
+	type EndingPeriod = EndingPeriod;
+	type Randomness = RandomnessCollectiveFlip;
+}
+
+parameter_types! {
+	pub const SubmissionDeposit: Balance = 1 * DOTS;
+	pub const MinContribution: Balance = 1 * DOTS;
+	pub const RetirementPeriod: BlockNumber = 50;
+	pub const CrowdloanModuleId: ModuleId = ModuleId(*b"py/cfund");
+	pub const RemoveKeysLimit: u32 = 10;
+}
+impl crowdloan::Config for Runtime {
+	type Event = Event;
+	type SubmissionDeposit = SubmissionDeposit;
+	type MinContribution = MinContribution;
+	type RetirementPeriod = RetirementPeriod;
+	type OrphanedFunds = Treasury;
+	type ModuleId = CrowdloanModuleId;
+	type RemoveKeysLimit = RemoveKeysLimit;
 }
 
 pub struct BaseFilter;

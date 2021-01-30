@@ -58,6 +58,10 @@ xcm = { package = "xcm", path = "../../xcm", default-features = false }
 xcm-executor = { package = "xcm-executor", path = "../../xcm/xcm-executor", default-features = false }
 xcm-builder = { package = "xcm-builder", path = "../../xcm/xcm-builder", default-features = false }
 
+pallet-treasury = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "rococo-v1" }
+pallet-bounties = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "rococo-v1" }
+pallet-randomness-collective-flip = { git = "https://github.com/paritytech/substrate", default-features = false , branch = "rococo-v1" }
+
 [build-dependencies]
 substrate-wasm-builder = "3.0.0"
 
@@ -107,6 +111,10 @@ std = [
 	"xcm/std",
 	"xcm-executor/std",
 	"xcm-builder/std",
+
+	"pallet-randomness-collective-flip/std",
+	"pallet-treasury/std",
+	"pallet-bounties/std",
 ]
 # When enabled, the runtime api will not be build.
 #

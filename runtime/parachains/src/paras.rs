@@ -179,11 +179,11 @@ pub struct ParaGenesisArgs {
 decl_storage! {
 	trait Store for Module<T: Config> as Paras {
 		/// All parachains. Ordered ascending by ParaId. Parathreads are not included.
-		Parachains get(fn parachains): Vec<ParaId>;
+		pub Parachains get(fn parachains): Vec<ParaId>;
 		/// All parathreads.
 		Parathreads: map hasher(twox_64_concat) ParaId => Option<()>;
 		/// The head-data of every registered para.
-		Heads get(fn para_head): map hasher(twox_64_concat) ParaId => Option<HeadData>;
+		pub Heads get(fn para_head): map hasher(twox_64_concat) ParaId => Option<HeadData>;
 		/// The validation code of every live para.
 		CurrentCode get(fn current_code): map hasher(twox_64_concat) ParaId => Option<ValidationCode>;
 		/// Actual past code, indicated by the para id as well as the block number at which it became outdated.
@@ -203,9 +203,9 @@ decl_storage! {
 		/// The block number at which the planned code change is expected for a para.
 		/// The change will be applied after the first parablock for this ID included which executes
 		/// in the context of a relay chain block with a number >= `expected_at`.
-		FutureCodeUpgrades get(fn future_code_upgrade_at): map hasher(twox_64_concat) ParaId => Option<T::BlockNumber>;
+		pub FutureCodeUpgrades get(fn future_code_upgrade_at): map hasher(twox_64_concat) ParaId => Option<T::BlockNumber>;
 		/// The actual future code of a para.
-		FutureCode: map hasher(twox_64_concat) ParaId => Option<ValidationCode>;
+		pub FutureCode: map hasher(twox_64_concat) ParaId => Option<ValidationCode>;
 
 		/// Upcoming paras (chains and threads). These are only updated on session change. Corresponds to an
 		/// entry in the upcoming-genesis map.
