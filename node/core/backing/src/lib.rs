@@ -302,7 +302,9 @@ async fn make_pov_available(
 	};
 
 	{
-		let _span = span.as_ref().map(|s| s.child("erasure-coding"));
+		let _span = span.as_ref().map(|s| {
+			s.child_with_candidate("erasure-coding", &candidate_hash)
+		});
 
 		let chunks = erasure_coding::obtain_chunks_v1(
 			n_validators,
@@ -318,7 +320,10 @@ async fn make_pov_available(
 	}
 
 	{
-		let _span = span.as_ref().map(|s| s.child("store-data"));
+		let _span = span.as_ref().map(|s|
+			s.child_with_candidate("store-data", &candidate_hash)
+		);
+
 		store_available_data(
 			tx_from,
 			validator_index,
@@ -528,7 +533,12 @@ impl CandidateBackingJob {
 								descriptor: candidate.descriptor.clone(),
 								commitments,
 							});
-							self.sign_import_and_distribute_statement(statement, parent_span).await?;
+							if let Some(stmt) = self.sign_import_and_distribute_statement(
+								statement,
+								parent_span,
+							).await? {
+								self.issue_candidate_seconded_message(stmt).await?;
+							}
 							self.distribute_pov(candidate.descriptor, pov).await?;
 						}
 					}
@@ -586,6 +596,15 @@ impl CandidateBackingJob {
 		Ok(())
 	}
 
+	async fn issue_candidate_seconded_message(
+		&mut self,
+		statement: SignedFullStatement,
+	) -> Result<(), Error> {
+		self.tx_from.send(AllMessages::from(CandidateSelectionMessage::Seconded(self.parent, statement)).into()).await?;
+
+		Ok(())
+	}
+
 	/// Kick off background validation with intent to second.
 	#[tracing::instrument(level = "trace", skip(self, parent_span, pov), fields(subsystem = LOG_TARGET))]
 	async fn validate_and_second(
@@ -631,13 +650,14 @@ impl CandidateBackingJob {
 		&mut self,
 		statement: Statement,
 		parent_span: &JaegerSpan,
-	) -> Result<(), Error> {
+	) -> Result<Option<SignedFullStatement>, Error> {
 		if let Some(signed_statement) = self.sign_statement(statement).await {
 			self.import_statement(&signed_statement, parent_span).await?;
-			self.distribute_signed_statement(signed_statement).await?;
+			self.distribute_signed_statement(signed_statement.clone()).await?;
+			Ok(Some(signed_statement))
+		} else {
+			Ok(None)
 		}
-
-		Ok(())
 	}
 
 	/// Check if there have happened any new misbehaviors and issue necessary messages.
@@ -880,9 +900,7 @@ impl CandidateBackingJob {
 		if !self.backed.contains(&hash) {
 			// only add if we don't consider this backed.
 			let span = self.unbacked_candidates.entry(hash).or_insert_with(|| {
-				let mut span = parent_span.child("unbacked-candidate");
-				span.add_string_tag("candidate-hash", &format!("{:?}", hash.0));
-				span
+				parent_span.child_with_candidate("unbacked-candidate", &hash)
 			});
 			Some(span)
 		} else {
@@ -891,7 +909,7 @@ impl CandidateBackingJob {
 	}
 
 	fn get_unbacked_validation_child(&mut self, parent_span: &JaegerSpan, hash: CandidateHash) -> Option<JaegerSpan> {
-		self.insert_or_get_unbacked_span(parent_span, hash).map(|span| span.child("validation"))
+		self.insert_or_get_unbacked_span(parent_span, hash).map(|span| span.child_with_candidate("validation", &hash))
 	}
 
 	fn get_unbacked_statement_child(
@@ -901,9 +919,10 @@ impl CandidateBackingJob {
 		validator: ValidatorIndex,
 	) -> Option<JaegerSpan> {
 		self.insert_or_get_unbacked_span(parent_span, hash).map(|span| {
-			let mut span = span.child("import-statement");
-			span.add_string_tag("validator-index", &format!("{}", validator));
-			span
+			span.child_builder("import-statement")
+				.with_candidate(&hash)
+				.with_validator_index(validator)
+				.build()
 		})
 	}
 
@@ -1274,11 +1293,9 @@ mod tests {
 
 			let validation_data = PersistedValidationData {
 				parent_head: HeadData(vec![7, 8, 9]),
-				block_number: Default::default(),
-				hrmp_mqc_heads: Vec::new(),
-				dmq_mqc_head: Default::default(),
+				relay_parent_number: Default::default(),
 				max_pov_size: 1024,
-				relay_storage_root: Default::default(),
+				relay_parent_storage_root: Default::default(),
 			};
 
 			Self {
@@ -1485,6 +1502,14 @@ mod tests {
 						&test_state.signing_context,
 						&test_state.validator_public[0],
 					).unwrap();
+				}
+			);
+
+			assert_matches!(
+				virtual_overseer.recv().await,
+				AllMessages::CandidateSelection(CandidateSelectionMessage::Seconded(hash, statement)) => {
+					assert_eq!(test_state.relay_parent, hash);
+					assert_matches!(statement.payload(), Statement::Seconded(_));
 				}
 			);
 
@@ -1794,7 +1819,10 @@ mod tests {
 			assert!(candidates[0].validity_votes.contains(
 				&ValidityAttestation::Explicit(signed_c.signature().clone())
 			));
-			assert_eq!(candidates[0].validator_indices, bitvec::bitvec![Lsb0, u8; 1, 0, 1, 1]);
+			assert_eq!(
+				candidates[0].validator_indices,
+				bitvec::bitvec![bitvec::order::Lsb0, u8; 1, 0, 1, 1],
+			);
 
 			virtual_overseer.send(FromOverseer::Signal(
 				OverseerSignal::ActiveLeaves(ActiveLeavesUpdate::stop_work(test_state.relay_parent)))
