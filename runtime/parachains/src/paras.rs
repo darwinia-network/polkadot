@@ -224,7 +224,7 @@ pub struct ParaGenesisArgs {
 decl_storage! {
 	trait Store for Module<T: Config> as Paras {
 		/// All parachains. Ordered ascending by ParaId. Parathreads are not included.
-		Parachains get(fn parachains): Vec<ParaId>;
+		pub Parachains get(fn parachains): Vec<ParaId>;
 		/// The current lifecycle of a all known Para IDs.
 		ParaLifecycles: map hasher(twox_64_concat) ParaId => Option<ParaLifecycle>;
 		/// The head-data of every registered para.
