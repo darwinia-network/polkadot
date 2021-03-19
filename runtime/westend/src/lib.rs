@@ -771,7 +771,7 @@ impl paras_registrar::Config for Runtime {
 }
 
 parameter_types! {
-	pub const EndingPeriod: BlockNumber = 1 * HOURS;
+	pub const EndingPeriod: BlockNumber = 20;
 }
 
 impl auctions::Config for Runtime {
@@ -784,7 +784,7 @@ impl auctions::Config for Runtime {
 }
 
 parameter_types! {
-	pub const LeasePeriod: BlockNumber = 365 * DAYS;
+	pub const LeasePeriod: BlockNumber = 50;
 }
 
 impl slots::Config for Runtime {
@@ -797,10 +797,10 @@ impl slots::Config for Runtime {
 
 parameter_types! {
 	pub const CrowdloanId: ModuleId = ModuleId(*b"py/cfund");
-	pub const SubmissionDeposit: Balance = 1_000 * DOLLARS;
-	pub const MinContribution: Balance = 100 * DOLLARS;
-	pub const RetirementPeriod: BlockNumber = 7 * DAYS;
-	pub const RemoveKeysLimit: u32 = 500;
+	pub const SubmissionDeposit: Balance = 1 * DOLLARS;
+	pub const MinContribution: Balance = 1 * DOLLARS;
+	pub const RetirementPeriod: BlockNumber = 20;
+	pub const RemoveKeysLimit: u32 = 10;
 
 }
 

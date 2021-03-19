@@ -1351,7 +1351,7 @@ pub fn westend_testnet_genesis(
 		},
 		pallet_staking: westend::StakingConfig {
 			minimum_validator_count: 1,
-			validator_count: 2,
+			validator_count: 1,
 			stakers: initial_authorities
 				.iter()
 				.map(|x| {
@@ -1412,7 +1412,7 @@ pub fn westend_testnet_genesis(
 				hrmp_max_message_num_per_candidate: 5,
 				no_show_slots: 2,
 				n_delay_tranches: 25,
-				needed_approvals: 2,
+				needed_approvals: 1,
 				relay_vrf_modulo_samples: 10,
 				zeroth_delay_tranche_width: 0,
 				..Default::default()

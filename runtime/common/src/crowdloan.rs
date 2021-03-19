@@ -473,7 +473,7 @@ decl_module! {
 			let fund = Self::funds(index).ok_or(Error::<T>::InvalidParaId)?;
 			let now = frame_system::Module::<T>::block_number();
 			let dissolution = fund.end.saturating_add(T::RetirementPeriod::get());
-			ensure!((fund.retiring && now >= dissolution) || fund.raised.is_zero(), Error::<T>::NotReadyToDissolve);
+			ensure!((fund.retiring && now >= dissolution) , Error::<T>::NotReadyToDissolve);
 
 			// Try killing the crowdloan child trie
 			match Self::crowdloan_kill(fund.trie_index) {
