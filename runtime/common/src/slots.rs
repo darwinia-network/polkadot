@@ -232,7 +232,6 @@ impl<T: Config> Module<T> {
 			if old_parachains.binary_search(para).is_err() {
 				// incoming.
 				let res = T::Registrar::make_parachain(*para);
-				debug_assert!(res.is_ok());
 			}
 		}
 
@@ -240,7 +239,6 @@ impl<T: Config> Module<T> {
 			if parachains.binary_search(para).is_err() {
 				// outgoing.
 				let res = T::Registrar::make_parathread(*para);
-				debug_assert!(res.is_ok());
 			}
 		}
 
