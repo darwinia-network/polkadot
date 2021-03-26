@@ -613,7 +613,7 @@ impl paras_registrar::Config for Runtime {
 }
 
 parameter_types! {
-	pub const EndingPeriod: BlockNumber = 15 * MINUTES;
+	pub const EndingPeriod: BlockNumber = 5 * MINUTES;
 }
 
 // A wrapper around `babe::CurrentBlockRandomness` that does not return `Option<Random>`.

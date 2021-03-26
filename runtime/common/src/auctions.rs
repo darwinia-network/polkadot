@@ -457,24 +457,15 @@ impl<T: Config> Module<T> {
 			let late_end = early_end.saturating_add(ending_period);
 			let is_ended = now >= late_end;
 			if is_ended {
-				// auction definitely ended.
-				// check to see if we can determine the actual ending point.
-				let (raw_offset, known_since) = T::Randomness::random(&b"para_auction"[..]);
-
-				if late_end <= known_since {
-					// Our random seed was known only after the auction ended. Good to use.
-					let raw_offset_block_number = <T::BlockNumber>::decode(&mut raw_offset.as_ref())
-						.expect("secure hashes should always be bigger than the block number; qed");
-					let offset = raw_offset_block_number % ending_period;
-					let res = Winning::<T>::get(offset).unwrap_or_default();
-					let mut i = T::BlockNumber::zero();
-					while i < ending_period {
-						Winning::<T>::remove(i);
-						i += One::one();
-					}
-					AuctionInfo::<T>::kill();
-					return Some((res, lease_period_index))
+				let offset = ending_period - T::BlockNumber::one();
+				let res = Winning::<T>::get(offset).unwrap_or_default();
+				let mut i = T::BlockNumber::zero();
+				while i < ending_period {
+					Winning::<T>::remove(i);
+					i += One::one();
 				}
+				AuctionInfo::<T>::kill();
+				return Some((res, lease_period_index))
 			}
 		}
 		None
